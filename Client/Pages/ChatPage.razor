@@ -1,0 +1,62 @@
+﻿@page "/chat"
+@using BlazorStaticWebApps.Models
+@inject HttpClient Http
+
+<h3>ChatPage</h3>
+
+<div>
+    <input @bind="user" placeholder="Your name" />
+    <input @bind="message" placeholder="Your message" @onkeypress="@(e => OnEnter(e))" />
+    <button @onclick="SendMessage">Send</button>
+</div>
+
+<ul>
+    @foreach (var msg in messages)
+    {
+        <li>@msg.Timestamp: <strong>@msg.User</strong> siger @msg.Message</li>
+    }
+</ul>
+
+@code {
+    private List<ChatMessage> messages = new List<ChatMessage>();
+    private string user;
+    private string message;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await RefreshMessages();
+        _ = RefreshMessagesPeriodically();
+    }
+
+    private async Task SendMessage()
+    {
+        var newMessage = new ChatMessage { User = user, Message = message, Timestamp = DateTime.Now };
+        await Http.PostAsJsonAsync("api/Chat", newMessage);
+        message = "";
+        messages.Add(newMessage);
+        StateHasChanged();
+    }
+
+    private async Task RefreshMessages()
+    {
+        messages = await Http.GetFromJsonAsync<List<ChatMessage>>("api/Chat");
+    }
+
+    private async Task RefreshMessagesPeriodically()
+    {
+        while (true)
+        {
+            await Task.Delay(5000);
+            await RefreshMessages();
+            StateHasChanged();
+        }
+    }
+
+    private async Task OnEnter(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            await SendMessage();
+        }
+    }
+}
